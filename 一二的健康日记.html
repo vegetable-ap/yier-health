@@ -1,0 +1,797 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>一二的健康日记</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  :root {
+    --pink: #ff9eb5;
+    --pink-soft: #ffd6e0;
+    --pink-deep: #ff7a9c;
+    --blue: #6ec6ff;
+    --blue-soft: #d4ecff;
+    --blue-deep: #4a9fd8;
+    --cream: #fff8f3;
+    --text: #4a3f44;
+    --text-light: #8a7d82;
+    --shadow: 0 8px 24px rgba(255, 158, 181, 0.18);
+    --shadow-blue: 0 8px 24px rgba(110, 198, 255, 0.22);
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Helvetica Neue", sans-serif;
+    background: linear-gradient(135deg, #fff0f3 0%, #f3f8ff 50%, #fff5f0 100%);
+    background-attachment: fixed;
+    color: var(--text);
+    min-height: 100vh;
+    padding-bottom: 40px;
+    line-height: 1.6;
+  }
+  .header {
+    text-align: center;
+    padding: 32px 20px 20px;
+    position: relative;
+  }
+  .header .sync-badge {
+    font-size: 11px;
+    color: #fff;
+    background: #2ba85a;
+    padding: 3px 10px;
+    border-radius: 10px;
+    display: inline-block;
+    margin-bottom: 10px;
+  }
+  .header h1 {
+    font-size: 28px;
+    font-weight: 700;
+    background: linear-gradient(120deg, var(--pink-deep), var(--blue-deep));
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 6px;
+  }
+  .header .subtitle { font-size: 14px; color: var(--text-light); }
+  .header .subtitle .name { color: var(--pink-deep); font-weight: 600; }
+
+  .date-bar {
+    max-width: 560px;
+    margin: 16px auto 0;
+    padding: 0 20px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+  }
+  .date-bar button {
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    border: none;
+    background: #fff;
+    color: var(--pink-deep);
+    font-size: 18px;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    transition: transform .15s;
+  }
+  .date-bar button:active { transform: scale(0.9); }
+  .date-bar input[type="date"] {
+    border: none;
+    background: #fff;
+    padding: 10px 16px;
+    border-radius: 20px;
+    font-size: 15px;
+    color: var(--text);
+    box-shadow: var(--shadow);
+    font-family: inherit;
+    text-align: center;
+    min-width: 150px;
+  }
+  .today-tag {
+    font-size: 12px;
+    background: var(--pink);
+    color: #fff;
+    padding: 3px 10px;
+    border-radius: 10px;
+    margin-left: 6px;
+  }
+
+  .container { max-width: 560px; margin: 20px auto 0; padding: 0 20px; }
+
+  .card {
+    background: #fff;
+    border-radius: 24px;
+    padding: 24px 20px;
+    margin-bottom: 18px;
+    box-shadow: var(--shadow);
+  }
+  .card.water { box-shadow: var(--shadow-blue); }
+  .card-title {
+    font-size: 17px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .card-desc { font-size: 13px; color: var(--text-light); margin-bottom: 18px; }
+
+  .water-visual { display: flex; flex-direction: column; align-items: center; margin-bottom: 18px; }
+  .bottle {
+    width: 90px; height: 150px;
+    border: 4px solid var(--blue-deep);
+    border-top: none;
+    border-radius: 0 0 30px 30px;
+    position: relative;
+    overflow: hidden;
+    background: var(--blue-soft);
+  }
+  .bottle::before {
+    content: '';
+    position: absolute;
+    top: -10px; left: 50%;
+    transform: translateX(-50%);
+    width: 40px; height: 14px;
+    background: var(--blue-deep);
+    border-radius: 6px 6px 0 0;
+  }
+  .water-fill {
+    position: absolute;
+    bottom: 0; left: 0;
+    width: 100%;
+    background: linear-gradient(180deg, var(--blue) 0%, var(--blue-deep) 100%);
+    transition: height .6s cubic-bezier(.4,1.4,.6,1);
+    border-radius: 0 0 26px 26px;
+  }
+  .water-fill::before {
+    content: '';
+    position: absolute;
+    top: -6px; left: 0;
+    width: 100%; height: 12px;
+    background: var(--blue);
+    border-radius: 50%;
+    animation: wave 2.5s ease-in-out infinite;
+  }
+  @keyframes wave {
+    0%, 100% { transform: scaleY(1); }
+    50% { transform: scaleY(1.3); }
+  }
+  .water-text { margin-top: 14px; text-align: center; }
+  .water-amount { font-size: 30px; font-weight: 700; color: var(--blue-deep); }
+  .water-amount .unit { font-size: 14px; font-weight: 500; }
+  .water-goal-text { font-size: 13px; color: var(--text-light); margin-top: 2px; }
+  .water-percent { font-size: 13px; color: var(--blue-deep); font-weight: 600; margin-top: 4px; }
+
+  .quick-btns { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-bottom: 12px; }
+  .quick-btn {
+    border: none;
+    background: var(--blue-soft);
+    color: var(--blue-deep);
+    padding: 12px 0;
+    border-radius: 14px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .15s;
+    font-family: inherit;
+  }
+  .quick-btn:active { transform: scale(0.94); background: var(--blue); color: #fff; }
+  .quick-btn.custom { background: #fff; border: 2px dashed var(--blue); }
+  .reset-btn {
+    width: 100%;
+    border: none;
+    background: #f5f5f5;
+    color: var(--text-light);
+    padding: 10px;
+    border-radius: 12px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+
+  .ear-visual { display: flex; flex-direction: column; align-items: center; margin-bottom: 18px; }
+  .ear-circle {
+    width: 120px; height: 120px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--pink-soft), #fff);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border: 3px solid var(--pink);
+    box-shadow: inset 0 -4px 12px rgba(255,158,181,.2);
+  }
+  .ear-count { font-size: 38px; font-weight: 700; color: var(--pink-deep); line-height: 1; }
+  .ear-label { font-size: 12px; color: var(--text-light); margin-top: 4px; }
+  .ear-tip {
+    margin-top: 12px;
+    font-size: 13px;
+    text-align: center;
+    padding: 8px 14px;
+    border-radius: 14px;
+    max-width: 90%;
+  }
+  .ear-tip.good { background: #e8f8ee; color: #2ba85a; }
+  .ear-tip.warn { background: #fff4e0; color: #e8922a; }
+  .ear-tip.bad { background: #ffe6e6; color: #e85a5a; }
+
+  .ear-btns { display: grid; grid-template-columns: 2fr 1fr; gap: 10px; }
+  .ear-add {
+    border: none;
+    background: linear-gradient(135deg, var(--pink), var(--pink-deep));
+    color: #fff;
+    padding: 14px;
+    border-radius: 16px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    box-shadow: var(--shadow);
+    font-family: inherit;
+  }
+  .ear-add:active { transform: scale(0.95); }
+  .ear-minus {
+    border: none;
+    background: var(--pink-soft);
+    color: var(--pink-deep);
+    padding: 14px;
+    border-radius: 16px;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .ear-minus:active { transform: scale(0.95); }
+
+  .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .stat-box {
+    background: linear-gradient(135deg, #fff, var(--cream));
+    border-radius: 16px;
+    padding: 14px;
+    text-align: center;
+  }
+  .stat-num { font-size: 22px; font-weight: 700; color: var(--text); }
+  .stat-num.blue { color: var(--blue-deep); }
+  .stat-num.pink { color: var(--pink-deep); }
+  .stat-label { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+
+  .chart-wrap { margin-top: 8px; }
+  .chart-bars {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    height: 120px;
+    gap: 6px;
+    padding: 0 4px;
+    border-bottom: 2px solid #f0e8ec;
+    margin-bottom: 6px;
+  }
+  .bar-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: flex-end;
+    height: 100%;
+    position: relative;
+  }
+  .bar {
+    width: 70%;
+    background: linear-gradient(180deg, var(--blue) 0%, var(--blue-deep) 100%);
+    border-radius: 6px 6px 0 0;
+    min-height: 3px;
+    transition: height .5s;
+    position: relative;
+  }
+  .bar.ear { background: linear-gradient(180deg, var(--pink) 0%, var(--pink-deep) 100%); }
+  .bar-value {
+    position: absolute;
+    top: -16px;
+    font-size: 10px;
+    color: var(--text-light);
+    white-space: nowrap;
+    left: 50%;
+    transform: translateX(-50%);
+  }
+  .bar-chart-labels {
+    display: flex;
+    justify-content: space-between;
+    padding: 0 4px;
+  }
+  .bar-label {
+    flex: 1;
+    text-align: center;
+    font-size: 10px;
+    color: var(--text-light);
+    margin-top: 4px;
+  }
+  .chart-toggle {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 12px;
+  }
+  .chart-toggle button {
+    flex: 1;
+    border: none;
+    background: #f5f5f5;
+    color: var(--text-light);
+    padding: 8px;
+    border-radius: 10px;
+    font-size: 13px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .chart-toggle button.active { background: var(--text); color: #fff; }
+
+  .tips-card {
+    background: linear-gradient(135deg, #fff9e6 0%, #fff4d6 100%);
+    border-radius: 24px;
+    padding: 20px;
+    margin-bottom: 18px;
+    box-shadow: var(--shadow);
+  }
+  .tips-card .tip-item {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+    font-size: 13px;
+    color: var(--text);
+  }
+  .tips-card .tip-item:last-child { margin-bottom: 0; }
+  .tips-card .tip-emoji { font-size: 18px; }
+
+  .love-note { text-align: center; padding: 20px; font-size: 13px; color: var(--text-light); font-style: italic; }
+
+  .modal-mask {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.35);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-mask.show { display: flex; }
+  .modal {
+    background: #fff;
+    border-radius: 24px;
+    padding: 24px;
+    width: 280px;
+    text-align: center;
+  }
+  .modal h3 { margin-bottom: 14px; color: var(--blue-deep); }
+  .modal input {
+    width: 100%;
+    padding: 12px;
+    border: 2px solid var(--blue-soft);
+    border-radius: 12px;
+    font-size: 16px;
+    text-align: center;
+    margin-bottom: 14px;
+    font-family: inherit;
+  }
+  .modal input:focus { outline: none; border-color: var(--blue); }
+  .modal-btns { display: flex; gap: 10px; }
+  .modal-btns button {
+    flex: 1;
+    border: none;
+    padding: 10px;
+    border-radius: 12px;
+    font-size: 14px;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .modal-btns .ok { background: var(--blue-deep); color: #fff; }
+  .modal-btns .cancel { background: #f0f0f0; color: var(--text-light); }
+
+  .toast {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: rgba(74,63,68,.92);
+    color: #fff;
+    padding: 10px 22px;
+    border-radius: 20px;
+    font-size: 14px;
+    opacity: 0;
+    transition: all .3s;
+    z-index: 200;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(255,255,255,.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+    font-size: 14px;
+    color: var(--text-light);
+  }
+  .loading-overlay.hidden { display: none; }
+
+  @media (max-width: 400px) {
+    .header h1 { font-size: 24px; }
+    .quick-btns { grid-template-columns: repeat(2, 1fr); }
+  }
+</style>
+</head>
+<body>
+
+<div class="loading-overlay" id="loadingOverlay">
+  <div style="text-align:center;">
+    <div style="margin-bottom:10px;font-size:32px;">💧</div>
+    <div>连接云同步中...</div>
+  </div>
+</div>
+
+<div class="header">
+  <div class="sync-badge">☁️ 云同步 — 两人数据实时共享</div>
+  <h1>一二的健康日记</h1>
+  <div class="subtitle">记录每天的<span class="name">喝水</span>与<span class="name">挖耳朵</span>，一起更健康地生活</div>
+</div>
+
+<div class="date-bar">
+  <button id="prevDay">‹</button>
+  <input type="date" id="dateInput">
+  <span class="today-tag" id="todayTag" style="display:none;">今天</span>
+  <button id="nextDay">›</button>
+</div>
+
+<div class="container">
+  <div class="card water">
+    <div class="card-title">💧 今日喝水</div>
+    <div class="card-desc">建议每天饮用 1500～2000ml，少量多次更健康</div>
+    <div class="water-visual">
+      <div class="bottle">
+        <div class="water-fill" id="waterFill" style="height:0%"></div>
+      </div>
+      <div class="water-text">
+        <div class="water-amount"><span id="waterAmount">0</span><span class="unit"> ml</span></div>
+        <div class="water-goal-text">目标 <span id="waterGoal">2000</span> ml</div>
+        <div class="water-percent" id="waterPercent">完成 0%</div>
+      </div>
+    </div>
+    <div class="quick-btns">
+      <button class="quick-btn" data-ml="100">+100</button>
+      <button class="quick-btn" data-ml="200">+200</button>
+      <button class="quick-btn" data-ml="300">+300</button>
+      <button class="quick-btn custom" id="customWater">自定义</button>
+    </div>
+    <button class="reset-btn" id="resetWater">重置今日水量</button>
+  </div>
+
+  <div class="card">
+    <div class="card-title">👂 今日挖耳朵</div>
+    <div class="card-desc">偶尔清理没问题，但频繁挖耳朵可能伤害耳道哦</div>
+    <div class="ear-visual">
+      <div class="ear-circle">
+        <div class="ear-count" id="earCount">0</div>
+        <div class="ear-label">次</div>
+      </div>
+      <div class="ear-tip good" id="earTip">👍 今天表现很棒，继续保持！</div>
+    </div>
+    <div class="ear-btns">
+      <button class="ear-add" id="earAdd">又挖了一次 👂</button>
+      <button class="ear-minus" id="earMinus">撤销</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">📊 近 7 天记录</div>
+    <div class="card-desc">坚持记录，养成好习惯</div>
+    <div class="stats">
+      <div class="stat-box">
+        <div class="stat-num blue" id="avgWater">0</div>
+        <div class="stat-label">日均喝水 ml</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-num pink" id="avgEar">0</div>
+        <div class="stat-label">日均挖耳朵 次</div>
+      </div>
+    </div>
+    <div class="chart-toggle">
+      <button class="active" data-type="water">💧 喝水量</button>
+      <button data-type="ear">👂 挖耳朵</button>
+    </div>
+    <div class="chart-wrap">
+      <div class="chart-bars" id="chartBars"></div>
+      <div class="bar-chart-labels" id="chartLabels"></div>
+    </div>
+  </div>
+
+  <div class="tips-card">
+    <div class="card-title" style="margin-bottom:12px;">💡 健康小贴士</div>
+    <div class="tip-item"><span class="tip-emoji">💧</span><div>晨起一杯温水，唤醒身体；饭前饭后适量饮水，帮助消化。</div></div>
+    <div class="tip-item"><span class="tip-emoji">👂</span><div>耳道有自洁功能，频繁挖耳朵反而会刺激分泌更多耳垢，一般一周 1-2 次足够。</div></div>
+    <div class="tip-item"><span class="tip-emoji">🌙</span><div>睡前少喝水，避免起夜影响睡眠质量。</div></div>
+    <div class="tip-item"><span class="tip-emoji">🥤</span><div>白开水是最好的选择，少喝含糖饮料。</div></div>
+  </div>
+
+  <div class="love-note">
+    亲爱的<span style="color:var(--pink-deep);font-weight:600;"> 一二 </span>，愿你每一天都健康快乐 ♥
+  </div>
+</div>
+
+<div class="modal-mask" id="modalMask">
+  <div class="modal">
+    <h3>输入喝水量 (ml)</h3>
+    <input type="number" id="customInput" placeholder="例如 250" min="1">
+    <div class="modal-btns">
+      <button class="cancel" id="modalCancel">取消</button>
+      <button class="ok" id="modalOk">确定</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(function(){
+  const WATER_GOAL = 2000;
+  const SUPABASE_URL = 'https://ycyfrcxccgxllghchkph.supabase.co';
+  const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InljeWZyY3hjY2d4bGxnaGNoa3BoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODI4MTM0MDgsImV4cCI6MjA5ODM4OTQwOH0.SpEqWF2ejHhrD2Wlh6lOV5yDGA3HoWgNy1TOpJjjd54';
+
+  const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+  let currentDate = todayStr();
+  let chartType = 'water';
+  let allRecentData = {};
+  let todayData = { water: 0, ear: 0 };
+
+  function todayStr() {
+    const d = new Date();
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function dateOffsetFromToday(offsetDays) {
+    const d = new Date();
+    d.setDate(d.getDate() + offsetDays);
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function dateOffset(offsetDays) {
+    const d = new Date(currentDate + 'T00:00:00');
+    d.setDate(d.getDate() + offsetDays);
+    return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+  }
+  function last7Dates() {
+    const arr = [];
+    for (let i = 6; i >= 0; i--) arr.push(dateOffsetFromToday(-i));
+    return arr;
+  }
+
+  function $(id) { return document.getElementById(id); }
+
+  // ====== Supabase 数据操作 ======
+
+  async function fetchToday() {
+    const { data, error } = await sb.from('health_records').select('*').eq('date', currentDate).maybeSingle();
+    if (error) { console.error('fetchToday error:', error); return; }
+    todayData = data ? { water: data.water, ear: data.ear } : { water: 0, ear: 0 };
+    renderToday();
+  }
+
+  async function fetchRecent7() {
+    const dates = last7Dates();
+    const { data, error } = await sb.from('health_records').select('*').in('date', dates);
+    if (error) { console.error('fetchRecent7 error:', error); return; }
+    allRecentData = {};
+    if (data) data.forEach(r => { allRecentData[r.date] = r; });
+    renderChart();
+    renderStats();
+  }
+
+  async function upsertToday() {
+    const { error } = await sb.from('health_records').upsert({
+      date: currentDate,
+      water: todayData.water,
+      ear: todayData.ear
+    }, { onConflict: 'date' });
+    if (error) console.error('upsertToday error:', error);
+  }
+
+  // ====== 实时订阅 ======
+
+  function subscribeRealtime() {
+    sb.channel('health-changes')
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'health_records',
+        filter: 'date=eq.' + currentDate
+      }, (payload) => {
+        if (payload.new && payload.new.date === currentDate) {
+          todayData = { water: payload.new.water, ear: payload.new.ear };
+          renderToday();
+        }
+        if (payload.old && payload.old.date === currentDate && !payload.new) {
+          todayData = { water: 0, ear: 0 };
+          renderToday();
+        }
+        fetchRecent7();
+      })
+      .subscribe();
+  }
+
+  // ====== 渲染 ======
+
+  function renderToday() {
+    $('dateInput').value = currentDate;
+    $('todayTag').style.display = (currentDate === todayStr()) ? 'inline-block' : 'none';
+
+    const w = todayData.water || 0;
+    $('waterAmount').textContent = w;
+    $('waterGoal').textContent = WATER_GOAL;
+    const pct = Math.min(100, Math.round(w / WATER_GOAL * 100));
+    $('waterPercent').textContent = '完成 ' + pct + '%';
+    $('waterFill').style.height = pct + '%';
+
+    const e = todayData.ear || 0;
+    $('earCount').textContent = e;
+    const tip = $('earTip');
+    if (e === 0) { tip.className = 'ear-tip good'; tip.textContent = '👍 今天表现很棒，继续保持！'; }
+    else if (e <= 2) { tip.className = 'ear-tip good'; tip.textContent = '🙂 还在合理范围内，注意别太频繁哦'; }
+    else if (e <= 4) { tip.className = 'ear-tip warn'; tip.textContent = '⚠️ 有点频繁啦，耳道需要休息一下'; }
+    else { tip.className = 'ear-tip bad'; tip.textContent = '❗ 今天挖太多啦，耳朵会不开心的，忍一忍～'; }
+  }
+
+  function renderStats() {
+    const dates = last7Dates();
+    let totalW = 0, totalE = 0, count = 0;
+    dates.forEach(d => {
+      if (allRecentData[d]) { totalW += allRecentData[d].water; totalE += allRecentData[d].ear; count++; }
+    });
+    $('avgWater').textContent = count ? Math.round(totalW / count) : 0;
+    $('avgEar').textContent = count ? (totalE / count).toFixed(1) : '0';
+  }
+
+  function renderChart() {
+    const dates = last7Dates();
+    const bars = $('chartBars');
+    const labels = $('chartLabels');
+    bars.innerHTML = '';
+    labels.innerHTML = '';
+
+    let maxVal = 0;
+    dates.forEach(d => {
+      const v = allRecentData[d] ? (chartType === 'water' ? allRecentData[d].water : allRecentData[d].ear) : 0;
+      if (v > maxVal) maxVal = v;
+    });
+    if (maxVal === 0) maxVal = chartType === 'water' ? 2000 : 5;
+
+    dates.forEach(d => {
+      const dayRec = allRecentData[d];
+      const val = dayRec ? (chartType === 'water' ? dayRec.water : dayRec.ear) : 0;
+      const heightPct = Math.max(2, Math.min(100, val / maxVal * 100));
+
+      const col = document.createElement('div');
+      col.className = 'bar-col';
+      const bar = document.createElement('div');
+      bar.className = 'bar' + (chartType === 'ear' ? ' ear' : '');
+      bar.style.height = heightPct + '%';
+      if (val > 0) {
+        const v = document.createElement('div');
+        v.className = 'bar-value';
+        v.textContent = val;
+        bar.appendChild(v);
+      }
+      col.appendChild(bar);
+      bars.appendChild(col);
+
+      const lbl = document.createElement('div');
+      lbl.className = 'bar-label';
+      const dateObj = new Date(d + 'T00:00:00');
+      lbl.textContent = (dateObj.getMonth()+1) + '/' + dateObj.getDate();
+      if (d === currentDate) { lbl.style.color = 'var(--pink-deep)'; lbl.style.fontWeight = '700'; }
+      labels.appendChild(lbl);
+    });
+  }
+
+  // ====== 导航 ======
+
+  async function goToDate(d) {
+    currentDate = d;
+    subscribeRealtime();
+    await fetchToday();
+    await fetchRecent7();
+    renderToday();
+  }
+
+  // ====== Toast ======
+
+  function showToast(msg) {
+    const t = $('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 1800);
+  }
+
+  // ====== 事件绑定 ======
+
+  document.querySelectorAll('.quick-btn[data-ml]').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const ml = parseInt(btn.dataset.ml);
+      todayData.water += ml;
+      renderToday();
+      await upsertToday();
+      await fetchRecent7();
+      showToast('已记录 +' + ml + 'ml 💧');
+    });
+  });
+
+  $('customWater').addEventListener('click', () => {
+    $('modalMask').classList.add('show');
+    $('customInput').value = '';
+    setTimeout(() => $('customInput').focus(), 100);
+  });
+  $('modalCancel').addEventListener('click', () => $('modalMask').classList.remove('show'));
+  $('modalOk').addEventListener('click', async () => {
+    const ml = parseInt($('customInput').value);
+    if (ml && ml > 0) {
+      todayData.water += ml;
+      renderToday();
+      await upsertToday();
+      await fetchRecent7();
+      showToast('已记录 +' + ml + 'ml 💧');
+    }
+    $('modalMask').classList.remove('show');
+  });
+  $('customInput').addEventListener('keydown', e => { if (e.key === 'Enter') $('modalOk').click(); });
+
+  $('resetWater').addEventListener('click', async () => {
+    todayData.water = 0;
+    renderToday();
+    await upsertToday();
+    await fetchRecent7();
+    showToast('已重置今日水量');
+  });
+
+  $('earAdd').addEventListener('click', async () => {
+    todayData.ear++;
+    renderToday();
+    await upsertToday();
+    await fetchRecent7();
+    if (todayData.ear <= 2) showToast('已记录，注意适度哦 👂');
+    else if (todayData.ear <= 4) showToast('有点多啦，让耳朵休息下～');
+    else showToast('耳朵在抗议啦！忍一忍 ❗');
+  });
+  $('earMinus').addEventListener('click', async () => {
+    if (todayData.ear > 0) {
+      todayData.ear--;
+      renderToday();
+      await upsertToday();
+      await fetchRecent7();
+      showToast('已撤销一次');
+    }
+  });
+
+  $('dateInput').addEventListener('change', async (e) => { await goToDate(e.target.value); });
+  $('prevDay').addEventListener('click', async () => { await goToDate(dateOffset(-1)); });
+  $('nextDay').addEventListener('click', async () => { await goToDate(dateOffset(1)); });
+
+  document.querySelectorAll('.chart-toggle button').forEach(btn => {
+    btn.addEventListener('click', () => {
+      document.querySelectorAll('.chart-toggle button').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      chartType = btn.dataset.type;
+      renderChart();
+    });
+  });
+
+  // ====== 启动 ======
+
+  async function init() {
+    await fetchToday();
+    await fetchRecent7();
+    subscribeRealtime();
+    $('loadingOverlay').classList.add('hidden');
+  }
+
+  init();
+})();
+</script>
+</body>
+</html>
